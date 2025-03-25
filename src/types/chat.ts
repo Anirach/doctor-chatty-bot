@@ -1,10 +1,14 @@
-
 export interface Message {
   id: string;
   content: string;
   role: 'patient' | 'doctor';
   timestamp: Date;
   isTyping?: boolean;
+  graph?: {
+    type: 'line' | 'bar' | 'pie';
+    data: any;
+    options?: any;
+  };
 }
 
 export interface ChatSession {
@@ -21,8 +25,13 @@ export interface WebhookConfig {
 }
 
 export interface N8nResponse {
-  response: string;
   success: boolean;
+  response: string;
+  graph?: {
+    type: 'line' | 'bar' | 'pie';
+    data: any;
+    options?: any;
+  };
   metadata?: {
     suggestedFollowUp?: string[];
     confidence?: number;

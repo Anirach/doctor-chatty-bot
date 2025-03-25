@@ -10,6 +10,32 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Line, Bar, Pie } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface MessageBubbleProps {
   message: Message;
@@ -26,6 +52,25 @@ const MessageBubble = ({ message, isLatest }: MessageBubbleProps) => {
       bubbleRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [isLatest, message.content]);
+
+  const renderGraph = () => {
+    if (!message.graph) return null;
+
+    const { type, data, options } = message.graph;
+    const defaultOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      ...options
+    };
+
+    return (
+      <div className="h-[300px] w-full my-4">
+        {type === 'line' && <Line data={data} options={defaultOptions} />}
+        {type === 'bar' && <Bar data={data} options={defaultOptions} />}
+        {type === 'pie' && <Pie data={data} options={defaultOptions} />}
+      </div>
+    );
+  };
 
   const renderMarkdown = (content: string, isDialog: boolean = false) => {
     return (
@@ -103,6 +148,7 @@ const MessageBubble = ({ message, isLatest }: MessageBubbleProps) => {
           <>
             <div className="mb-1 prose prose-sm max-w-none">
               {renderMarkdown(message.content)}
+              {message.graph && renderGraph()}
             </div>
             <div className={cn(
               "text-xs opacity-70",

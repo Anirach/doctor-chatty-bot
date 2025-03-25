@@ -57,16 +57,32 @@ export async function sendToN8n(message: string, webhookUrl: string): Promise<N8
     
     // ตรวจสอบรูปแบบข้อมูลที่เป็น array และมี output
     let responseText = '';
-    if (Array.isArray(data) && data.length > 0 && data[0].output) {
-      responseText = data[0].output;
+    let graphData = null;
+
+    if (Array.isArray(data) && data.length > 0) {
+      if (data[0].output) {
+        responseText = data[0].output;
+      }
+      if (data[0].graph) {
+        graphData = data[0].graph;
+      }
     } else if (typeof data === 'string') {
       responseText = data;
     } else if (data.response) {
       responseText = data.response;
+      if (data.graph) {
+        graphData = data.graph;
+      }
     } else if (data.message) {
       responseText = data.message;
+      if (data.graph) {
+        graphData = data.graph;
+      }
     } else if (data.text) {
       responseText = data.text;
+      if (data.graph) {
+        graphData = data.graph;
+      }
     } else {
       responseText = JSON.stringify(data);
     }
@@ -74,6 +90,7 @@ export async function sendToN8n(message: string, webhookUrl: string): Promise<N8
     return {
       success: true,
       response: responseText,
+      graph: graphData,
     };
   } catch (error) {
     console.error('Error sending message to n8n:', error);
