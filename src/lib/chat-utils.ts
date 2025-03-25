@@ -48,6 +48,17 @@ export async function sendToN8n(message: string, webhookUrl: string): Promise<N8
     }
 
     const data = await response.json();
+    
+    // Check if the response is an array with at least one object that has an 'output' property
+    if (Array.isArray(data) && data.length > 0 && data[0].hasOwnProperty('output')) {
+      return {
+        response: data[0].output || "I'm sorry, I couldn't process your request. Please try again.",
+        success: true,
+        metadata: data[0].metadata,
+      };
+    }
+    
+    // Fall back to the old response format if not an array with 'output'
     return {
       response: data.response || "I'm sorry, I couldn't process your request. Please try again.",
       success: true,
