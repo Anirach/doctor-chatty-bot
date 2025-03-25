@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { Settings, Trash2, RefreshCw } from "lucide-react";
+import React from "react";
+import { Settings, Trash2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StethoscopeIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -33,24 +34,33 @@ const ChatHeader = ({ onClearChat, onOpenSettings, webhookConnected }: ChatHeade
         </div>
       </div>
       
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-            <Settings className="h-4 w-4" />
+      <div className="flex items-center gap-2">
+        <Link to="/exit" className="no-underline">
+          <Button variant="outline" size="sm" className="flex items-center gap-1">
+            <LogOut className="h-4 w-4" />
+            <span>Exit</span>
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48 animate-fade-in">
-          <DropdownMenuItem onClick={onOpenSettings} className="cursor-pointer">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onClearChat} className="cursor-pointer text-red-500 focus:text-red-500">
-            <Trash2 className="mr-2 h-4 w-4" />
-            <span>Clear chat</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </Link>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 animate-fade-in">
+            <DropdownMenuItem onClick={onOpenSettings} className="cursor-pointer">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onClearChat} className="cursor-pointer text-red-500 focus:text-red-500">
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Clear chat</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 };
