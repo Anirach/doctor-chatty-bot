@@ -14,6 +14,9 @@ import { Label } from "@/components/ui/label";
 import { WebhookConfig } from "@/types/chat";
 import { toast } from "sonner";
 
+// Default n8n webhook URL
+const DEFAULT_WEBHOOK_URL = "https://amk-n8n.proen.app.ruk-com.cloud/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d";
+
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,7 +30,8 @@ const SettingsDialog = ({
   webhookConfig,
   onSaveWebhook,
 }: SettingsDialogProps) => {
-  const [url, setUrl] = useState(webhookConfig.url);
+  // Initialize with the provided webhook URL or fall back to the default if empty
+  const [url, setUrl] = useState(webhookConfig.url || DEFAULT_WEBHOOK_URL);
   const [testLoading, setTestLoading] = useState(false);
   
   const handleSave = () => {
@@ -86,6 +90,12 @@ const SettingsDialog = ({
     }
   };
 
+  // Reset button handler
+  const handleResetToDefault = () => {
+    setUrl(DEFAULT_WEBHOOK_URL);
+    toast.info("URL reset to default");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] animate-fade-in">
@@ -99,13 +109,23 @@ const SettingsDialog = ({
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="webhook-url">n8n Webhook URL</Label>
-            <Input
-              id="webhook-url"
-              placeholder="https://your-n8n-instance.com/webhook/..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="w-full"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="webhook-url"
+                placeholder="https://your-n8n-instance.com/webhook/..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="w-full"
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleResetToDefault}
+                title="Reset to default URL"
+              >
+                Reset
+              </Button>
+            </div>
             <p className="text-sm text-muted-foreground">
               Enter the webhook URL from your n8n workflow that will process the patient messages
             </p>
