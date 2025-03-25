@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WebhookConfig } from "@/types/chat";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface SettingsDialogProps {
   open: boolean;
