@@ -1,9 +1,9 @@
-
 import React, { useEffect, useRef } from "react";
 import { UserCircle, StethoscopeIcon } from "lucide-react";
 import { Message } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { formatMessageTime } from "@/lib/chat-utils";
+import ReactMarkdown from "react-markdown";
 
 interface MessageBubbleProps {
   message: Message;
@@ -50,7 +50,9 @@ const MessageBubble = ({ message, isLatest }: MessageBubbleProps) => {
           </div>
         ) : (
           <>
-            <div className="mb-1">{message.content}</div>
+            <div className="mb-1 prose prose-sm max-w-none">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            </div>
             <div className={cn(
               "text-xs opacity-70",
               isDoctor ? "text-doctor-dark" : "text-gray-600"
