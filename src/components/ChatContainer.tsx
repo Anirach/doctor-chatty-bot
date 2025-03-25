@@ -4,11 +4,11 @@ import ChatInput from "./ChatInput";
 import ChatHeader from "./ChatHeader";
 import SettingsDialog from "./SettingsDialog";
 import { Message, WebhookConfig } from "@/types/chat";
-import { generateId, sendToN8n, saveChatSession, getChatSession } from "@/lib/chat-utils";
+import { generateId, sendToN8n, saveChatSession, getChatSession, getSessionList, deleteChatSession, getSessionDetails } from "@/lib/chat-utils";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
-const ChatContainer = () => {
+const ChatContainer: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -16,36 +16,84 @@ const ChatContainer = () => {
     url: localStorage.getItem("n8n-webhook-url") || "",
     connected: localStorage.getItem("n8n-webhook-connected") === "true",
   });
+  const [sessions, setSessions] = useState<{ id: string; title: string; lastMessage: string; timestamp: Date }[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const sessionId = useRef<string>(generateId());
   const { toast } = useToast();
 
-  // Load initial messages
+  const handleNewChat = () => {
+    const newSessionId = generateId();
+    setCurrentSessionId(newSessionId);
+    setMessages([]);
+    
+    // Add welcome message
+    const welcomeMessage: Message = {
+      id: generateId(),
+      content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+      role: "doctor",
+      timestamp: new Date(),
+    };
+    setMessages([welcomeMessage]);
+    saveChatSession(newSessionId, [welcomeMessage]);
+    
+    // Update sessions list
+    const sessionDetails = getSessionDetails(newSessionId);
+    setSessions(prev => [{ id: newSessionId, ...sessionDetails }, ...prev]);
+  };
+
+  // Load sessions
   useEffect(() => {
-    const savedMessages = getChatSession(sessionId.current);
-    if (savedMessages.length > 0) {
-      setMessages(savedMessages);
+    const sessionIds = getSessionList();
+    const sessionDetails = sessionIds.map(id => ({
+      id,
+      ...getSessionDetails(id)
+    }));
+    setSessions(sessionDetails);
+    
+    // Set current session to the most recent one or create new one
+    if (sessionDetails.length > 0) {
+      setCurrentSessionId(sessionDetails[0].id);
     } else {
-      // Add welcome message if this is a new session
-      const welcomeMessage: Message = {
-        id: generateId(),
-        content: "Hello! I'm Dr. Assistant. How can I help you today?",
-        role: "doctor",
-        timestamp: new Date(),
-      };
-      setMessages([welcomeMessage]);
-      saveChatSession(sessionId.current, [welcomeMessage]);
+      handleNewChat();
     }
   }, []);
 
+  // Load messages for current session
+  useEffect(() => {
+    if (currentSessionId) {
+      const savedMessages = getChatSession(currentSessionId);
+      if (savedMessages.length > 0) {
+        setMessages(savedMessages);
+      } else {
+        // Add welcome message if this is a new session
+        const welcomeMessage: Message = {
+          id: generateId(),
+          content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+          role: "doctor",
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
+        saveChatSession(currentSessionId, [welcomeMessage]);
+      }
+    }
+  }, [currentSessionId]);
+
   // Save messages when they change
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && currentSessionId) {
       // Only save messages that aren't typing indicators
       const messagesToSave = messages.filter(msg => !msg.isTyping);
-      saveChatSession(sessionId.current, messagesToSave);
+      saveChatSession(currentSessionId, messagesToSave);
+      
+      // Update sessions list
+      const sessionDetails = getSessionDetails(currentSessionId);
+      setSessions(prev => 
+        prev.map(session => 
+          session.id === currentSessionId ? { ...session, ...sessionDetails } : session
+        )
+      );
     }
-  }, [messages]);
+  }, [messages, currentSessionId]);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
@@ -98,7 +146,7 @@ const ChatContainer = () => {
           // Add error message
           const errorMessage: Message = {
             id: generateId(),
-            content: "Please configure the n8n webhook URL in settings to enable doctor responses.",
+            content: "กรุณาตั้งค่า n8n webhook URL ในส่วนตั้งค่าเพื่อให้สามารถตอบกลับได้",
             role: "doctor",
             timestamp: new Date(),
           };
@@ -137,8 +185,8 @@ const ChatContainer = () => {
         setWebhookConfig(prev => ({ ...prev, connected: false }));
         toast({
           variant: "destructive",
-          title: "Connection Error",
-          description: "Unable to connect to n8n webhook. Please check your settings.",
+          title: "การเชื่อมต่อล้มเหลว",
+          description: "ไม่สามารถเชื่อมต่อกับ n8n webhook ได้ กรุณาตรวจสอบการตั้งค่า",
         });
       } else if (response.success && !webhookConfig.connected) {
         setWebhookConfig(prev => ({ ...prev, connected: true }));
@@ -154,7 +202,7 @@ const ChatContainer = () => {
       // Add error message
       const errorMessage: Message = {
         id: generateId(),
-        content: "I'm sorry, I'm having trouble processing your message. Please try again later.",
+        content: "ขออภัยครับ เกิดปัญหาในการประมวลผลข้อความ กรุณาลองใหม่อีกครั้ง",
         role: "doctor",
         timestamp: new Date(),
       };
@@ -162,8 +210,8 @@ const ChatContainer = () => {
       
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to process your message. Please try again.",
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถประมวลผลข้อความได้ กรุณาลองใหม่อีกครั้ง",
       });
     } finally {
       setIsProcessing(false);
@@ -174,57 +222,48 @@ const ChatContainer = () => {
     // Keep the welcome message
     const welcomeMessage: Message = {
       id: generateId(),
-      content: "Hello! I'm Dr. Assistant. How can I help you today?",
+      content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
       role: "doctor",
       timestamp: new Date(),
     };
     setMessages([welcomeMessage]);
-    saveChatSession(sessionId.current, [welcomeMessage]);
+    saveChatSession(currentSessionId, [welcomeMessage]);
     
     toast({
-      title: "Chat cleared",
-      description: "All messages have been cleared.",
+      title: "ล้างแชทแล้ว",
+      description: "ลบข้อความทั้งหมดเรียบร้อยแล้ว",
     });
   };
 
-  const handleSaveWebhook = (config: WebhookConfig) => {
-    setWebhookConfig(config);
-  };
-
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-3xl mx-auto">
-      <div className="flex-1 flex flex-col overflow-hidden p-4 chat-container">
-        <ChatHeader 
-          onClearChat={handleClearChat} 
-          onOpenSettings={() => setSettingsOpen(true)}
-          webhookConnected={webhookConfig.connected}
-        />
-        
-        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-4">
-          {messages.map((message, index) => (
-            <MessageBubble 
-              key={message.id} 
-              message={message} 
-              isLatest={index === messages.length - 1} 
-            />
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-        
-        <div className="mt-4">
-          <ChatInput 
-            onSendMessage={handleSendMessage} 
-            isProcessing={isProcessing}
-            placeholder="Describe your symptoms or ask a question..."
+    <div className="flex flex-col h-full">
+      <ChatHeader 
+        onOpenSettings={() => setSettingsOpen(true)}
+        onClearChat={handleClearChat}
+        webhookConnected={webhookConfig.connected}
+      />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message, index) => (
+          <MessageBubble 
+            key={message.id} 
+            message={message}
+            isLatest={index === messages.length - 1}
           />
-        </div>
+        ))}
+        <div ref={messagesEndRef} />
       </div>
-      
-      <SettingsDialog 
+      <div className="p-4 border-t">
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          isProcessing={isProcessing}
+          placeholder="อธิบายอาการหรือถามคำถาม..."
+        />
+      </div>
+      <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         webhookConfig={webhookConfig}
-        onSaveWebhook={handleSaveWebhook}
+        onSaveWebhook={setWebhookConfig}
       />
     </div>
   );

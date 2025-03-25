@@ -1,4 +1,3 @@
-
 import { Message, N8nResponse } from "@/types/chat";
 
 // Generate unique IDs for messages
@@ -8,7 +7,7 @@ export function generateId(): string {
 
 // Format the current date for display
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('th-TH', {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true,
@@ -20,15 +19,14 @@ export function formatDate(date: Date): string {
 // Format the timestamp for message display
 export function formatMessageTime(date: Date): string {
   if (!(date instanceof Date) || isNaN(date.getTime())) {
-    // Handle invalid date by returning a placeholder or current time
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat('th-TH', {
       hour: 'numeric',
       minute: 'numeric',
       hour12: true,
     }).format(new Date());
   }
   
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('th-TH', {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true,
@@ -38,48 +36,52 @@ export function formatMessageTime(date: Date): string {
 // Send message to n8n webhook
 export async function sendToN8n(message: string, webhookUrl: string): Promise<N8nResponse> {
   try {
-    console.log(`Sending message to n8n webhook: ${webhookUrl}`);
-    
+    if (!webhookUrl) {
+      throw new Error('Webhook URL is not configured');
+    }
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        message: message,
-        timestamp: new Date().toISOString(),
-        source: 'doctor-chatbot',
-        query: message, // Add query field which might be expected by the webhook
-        text: message,  // Add text field which might be expected by the webhook
-      }),
+      body: JSON.stringify({ message }),
     });
 
     if (!response.ok) {
-      throw new Error(`Error: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('Response from n8n:', data);
     
-    // Check if the response is an array with at least one object that has an 'output' property
-    if (Array.isArray(data) && data.length > 0 && data[0].hasOwnProperty('output')) {
-      return {
-        response: data[0].output || "I'm sorry, I couldn't process your request. Please try again.",
-        success: true,
-        metadata: data[0].metadata,
-      };
+    // ตรวจสอบรูปแบบข้อมูลที่เป็น array และมี output
+    let responseText = '';
+    if (Array.isArray(data) && data.length > 0 && data[0].output) {
+      responseText = data[0].output;
+    } else if (typeof data === 'string') {
+      responseText = data;
+    } else if (data.response) {
+      responseText = data.response;
+    } else if (data.message) {
+      responseText = data.message;
+    } else if (data.text) {
+      responseText = data.text;
+    } else {
+      responseText = JSON.stringify(data);
     }
-    
-    // Fall back to the old response format if not an array with 'output'
+
     return {
-      response: data.response || "I'm sorry, I couldn't process your request. Please try again.",
       success: true,
-      metadata: data.metadata,
+      response: responseText,
     };
   } catch (error) {
-    console.error('Error communicating with n8n:', error);
+    console.error('Error sending message to n8n:', error);
     return {
-      response: "I'm having trouble connecting to my knowledge base at the moment. Please try again in a few moments.",
       success: false,
+      response: error instanceof Error 
+        ? `ขออภัย เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}`
+        : "ขออภัย ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้",
     };
   }
 }
@@ -111,26 +113,37 @@ export function getChatSession(sessionId: string): Message[] {
   }
 }
 
-// Get list of all session IDs
+// Get list of all chat sessions
 export function getSessionList(): string[] {
   try {
     const sessions = localStorage.getItem('chat-sessions');
     return sessions ? JSON.parse(sessions) : [];
   } catch (error) {
-    console.error('Error retrieving session list:', error);
+    console.error('Error getting session list:', error);
     return [];
   }
 }
 
-// Clear a chat session
-export function clearChatSession(sessionId: string): void {
+// Delete a chat session
+export function deleteChatSession(sessionId: string): void {
   try {
     localStorage.removeItem(`chat-session-${sessionId}`);
-    
-    // Remove from session list
-    const sessions = getSessionList().filter(id => id !== sessionId);
-    localStorage.setItem('chat-sessions', JSON.stringify(sessions));
+    const sessions = getSessionList();
+    const updatedSessions = sessions.filter(id => id !== sessionId);
+    localStorage.setItem('chat-sessions', JSON.stringify(updatedSessions));
   } catch (error) {
-    console.error('Error clearing chat session:', error);
+    console.error('Error deleting chat session:', error);
   }
+}
+
+// Get session details
+export function getSessionDetails(sessionId: string): { title: string; lastMessage: string; timestamp: Date } {
+  const messages = getChatSession(sessionId);
+  const lastMessage = messages[messages.length - 1];
+  
+  return {
+    title: messages[0]?.content.slice(0, 30) + (messages[0]?.content.length > 30 ? '...' : '') || 'แชทใหม่',
+    lastMessage: lastMessage?.content.slice(0, 50) + (lastMessage?.content.length > 50 ? '...' : '') || '',
+    timestamp: lastMessage?.timestamp || new Date(),
+  };
 }

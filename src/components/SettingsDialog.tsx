@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -52,9 +51,9 @@ const SettingsDialog = ({
     setTestLoading(true);
     try {
       const testMessage = {
-        message: "This is a test message from the Doctor Chatbot",
-        timestamp: new Date().toISOString(),
-        source: "doctor-chatbot-test",
+        message: "test_connection",
+        type: "connection_test",
+        timestamp: new Date().toISOString()
       };
       
       const response = await fetch(url.trim(), {
@@ -65,22 +64,25 @@ const SettingsDialog = ({
         body: JSON.stringify(testMessage),
       });
       
-      if (response.ok) {
-        toast.success("Connection successful!");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Test connection response:", data);
+
+      if (data) {
+        toast.success("เชื่อมต่อสำเร็จ!");
         onSaveWebhook({
           url: url.trim(),
           connected: true,
         });
       } else {
-        toast.error("Connection failed. Please check your webhook URL.");
-        onSaveWebhook({
-          url: url.trim(),
-          connected: false,
-        });
+        throw new Error("ไม่ได้รับการตอบกลับที่ถูกต้อง");
       }
     } catch (error) {
       console.error("Error testing connection:", error);
-      toast.error("Connection failed. Please check your webhook URL.");
+      toast.error(`การเชื่อมต่อล้มเหลว: ${error instanceof Error ? error.message : 'Unknown error'}`);
       onSaveWebhook({
         url: url.trim(),
         connected: false,
