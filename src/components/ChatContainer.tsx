@@ -21,6 +21,18 @@ const ChatContainer: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // เพิ่มข้อความต้อนรับเมื่อเริ่มบทสนทนาใหม่
+  React.useEffect(() => {
+    if (messages.length === 0) {
+      const welcomeMessage: Message = {
+        role: "assistant",
+        content: "Hello! I'm Dr. Assistant. How can I help you today?",
+        timestamp: new Date().toISOString()
+      };
+      setMessages([welcomeMessage]);
+    }
+  }, []);
+
   const handleNewChat = () => {
     const newSessionId = generateId();
     setCurrentSessionId(newSessionId);
@@ -30,8 +42,8 @@ const ChatContainer: React.FC = () => {
     const welcomeMessage: Message = {
       id: generateId(),
       content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
-      role: "doctor",
-      timestamp: new Date(),
+      role: "assistant",
+      timestamp: new Date().toISOString(),
     };
     setMessages([welcomeMessage]);
     saveChatSession(newSessionId, [welcomeMessage]);
@@ -241,6 +253,7 @@ const ChatContainer: React.FC = () => {
         onOpenSettings={() => setSettingsOpen(true)}
         onClearChat={handleClearChat}
         webhookConnected={webhookConfig.connected}
+        messages={messages}
       />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (

@@ -1,5 +1,5 @@
 import React from "react";
-import { Settings, Trash2, LogOut } from "lucide-react";
+import { Settings, Trash2, LogOut, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,17 +10,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StethoscopeIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { chatService } from "@/services/chatService";
+import { Message } from "@/types/chat";
 
 interface ChatHeaderProps {
   onClearChat: () => void;
   onOpenSettings: () => void;
   webhookConnected: boolean;
+  messages: Message[];
 }
 
-const ChatHeader = ({ onClearChat, onOpenSettings, webhookConnected }: ChatHeaderProps) => {
+const ChatHeader = ({ onClearChat, onOpenSettings, webhookConnected, messages }: ChatHeaderProps) => {
   const navigate = useNavigate();
 
   const handleExit = () => {
+    if (messages.length > 0) {
+      chatService.saveChat(messages);
+    }
     navigate('/');
   };
 
@@ -40,6 +46,15 @@ const ChatHeader = ({ onClearChat, onOpenSettings, webhookConnected }: ChatHeade
       </div>
       
       <div className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1"
+          onClick={() => navigate('/history')}
+        >
+          <History className="h-4 w-4" />
+          <span>History</span>
+        </Button>
         <Button 
           variant="outline" 
           size="sm" 

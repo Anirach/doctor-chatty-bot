@@ -1,22 +1,22 @@
 export interface Message {
-  id: string;
+  role: 'user' | 'assistant';
   content: string;
-  role: 'patient' | 'doctor';
-  timestamp: Date;
-  isTyping?: boolean;
-  graph?: {
-    type: 'line' | 'bar' | 'pie';
-    data: any;
-    options?: any;
-  };
+  timestamp: string;
 }
 
-export interface ChatSession {
+export interface Chat {
   id: string;
   title: string;
   messages: Message[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatHistory {
+  id: string;
+  title: string;
+  lastMessage: string;
+  timestamp: string;
 }
 
 export interface WebhookConfig {
