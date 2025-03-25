@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Settings, Trash2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StethoscopeIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -19,6 +18,12 @@ interface ChatHeaderProps {
 }
 
 const ChatHeader = ({ onClearChat, onOpenSettings, webhookConnected }: ChatHeaderProps) => {
+  const navigate = useNavigate();
+
+  const handleExit = () => {
+    navigate('/');
+  };
+
   return (
     <div className="glass rounded-xl p-3 mb-4 flex items-center justify-between animate-fade-in">
       <div className="flex items-center gap-2">
@@ -35,12 +40,15 @@ const ChatHeader = ({ onClearChat, onOpenSettings, webhookConnected }: ChatHeade
       </div>
       
       <div className="flex items-center gap-2">
-        <Link to="/exit" className="no-underline">
-          <Button variant="outline" size="sm" className="flex items-center gap-1">
-            <LogOut className="h-4 w-4" />
-            <span>Exit</span>
-          </Button>
-        </Link>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1"
+          onClick={handleExit}
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Exit</span>
+        </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
