@@ -19,6 +19,15 @@ export function formatDate(date: Date): string {
 
 // Format the timestamp for message display
 export function formatMessageTime(date: Date): string {
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    // Handle invalid date by returning a placeholder or current time
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    }).format(new Date());
+  }
+  
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: 'numeric',
@@ -37,9 +46,11 @@ export async function sendToN8n(message: string, webhookUrl: string): Promise<N8
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        message,
+        message: message,
         timestamp: new Date().toISOString(),
         source: 'doctor-chatbot',
+        query: message, // Add query field which might be expected by the webhook
+        text: message,  // Add text field which might be expected by the webhook
       }),
     });
 
