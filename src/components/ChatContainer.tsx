@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import ChatHeader from "./ChatHeader";
 import SettingsDialog from "./SettingsDialog";
 import { Message, WebhookConfig } from "@/types/chat";
-import { generateId, sendToN8n, saveChatSession, getChatSession, getSessionList, deleteChatSession, getSessionDetails } from "@/lib/chat-utils";
+import { generateId, sendToN8n } from "@/lib/chat-utils";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { chatService } from "@/services/chatService";
@@ -29,6 +28,7 @@ const ChatContainer: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { id: chatId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   // Load messages for current session or create welcome message
   useEffect(() => {
@@ -65,26 +65,33 @@ const ChatContainer: React.FC = () => {
 
   // Save messages when they change
   useEffect(() => {
-    if (messages.length > 0 && chatId) {
+    if (messages.length > 0) {
       // Only save messages that aren't typing indicators
       const messagesToSave = messages.filter(msg => !msg.isTyping).map(({ id, ...rest }) => rest);
       
-      // Get existing chat or create a new one
-      const existingChat = chatService.getChatById(chatId);
-      if (existingChat) {
-        existingChat.messages = messagesToSave;
-        existingChat.updatedAt = new Date().toISOString();
-        const chats = chatService.getChats();
-        const updatedChats = chats.map(chat => 
-          chat.id === chatId ? existingChat : chat
-        );
-        localStorage.setItem("chat_history", JSON.stringify(updatedChats));
-      } else if (messagesToSave.length > 0) {
-        // If we have messages but no existing chat, create a new one
-        chatService.saveChat(messagesToSave);
+      if (chatId) {
+        // Update existing chat
+        const existingChat = chatService.getChatById(chatId);
+        if (existingChat) {
+          existingChat.messages = messagesToSave;
+          existingChat.updatedAt = new Date().toISOString();
+          const chats = chatService.getChats();
+          const updatedChats = chats.map(chat => 
+            chat.id === chatId ? existingChat : chat
+          );
+          localStorage.setItem("chat_history", JSON.stringify(updatedChats));
+        } else if (messagesToSave.length > 0) {
+          // If we have messages but no existing chat, create a new one
+          const newChat = chatService.saveChat(messagesToSave);
+          navigate(`/chat/${newChat.id}`, { replace: true });
+        }
+      } else if (messagesToSave.length > 1) {
+        // If we have more than just the welcome message and no chat ID, create a new chat
+        const newChat = chatService.saveChat(messagesToSave);
+        navigate(`/chat/${newChat.id}`, { replace: true });
       }
     }
-  }, [messages, chatId]);
+  }, [messages, chatId, navigate]);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
@@ -100,21 +107,21 @@ const ChatContainer: React.FC = () => {
   const handleSendMessage = async (content: string) => {
     if (isProcessing) return;
 
-    // Add patient message
-    const patientMessage: ExtendedMessage = {
+    // Add user message
+    const userMessage: ExtendedMessage = {
       id: generateId(),
       content,
-      role: "user", // Changed from "patient" to "user" to match Message type
+      role: "user",
       timestamp: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, patientMessage]);
+    setMessages(prev => [...prev, userMessage]);
     
     // Add typing indicator
     const typingIndicatorId = generateId();
     const typingIndicator: ExtendedMessage = {
       id: typingIndicatorId,
       content: "",
-      role: "assistant", // Changed from "doctor" to "assistant" to match Message type
+      role: "assistant",
       timestamp: new Date().toISOString(),
       isTyping: true,
     };
@@ -138,7 +145,7 @@ const ChatContainer: React.FC = () => {
           const errorMessage: ExtendedMessage = {
             id: generateId(),
             content: "กรุณาตั้งค่า n8n webhook URL ในส่วนตั้งค่าเพื่อให้สามารถตอบกลับได้",
-            role: "assistant", // Changed from "doctor" to "assistant"
+            role: "assistant",
             timestamp: new Date().toISOString(),
           };
           setMessages(prev => [...prev, errorMessage]);
@@ -158,17 +165,18 @@ const ChatContainer: React.FC = () => {
         prev.filter(msg => msg.id !== typingIndicatorId)
       );
       
-      // Add doctor message
-      const doctorMessage: ExtendedMessage = {
+      // Add assistant message
+      const assistantMessage: ExtendedMessage = {
         id: generateId(),
         content: response.response,
-        role: "assistant", // Changed from "doctor" to "assistant"
+        role: "assistant",
         timestamp: new Date().toISOString(),
+        graph: response.graph
       };
       
       // Add a small delay for natural conversation flow
       setTimeout(() => {
-        setMessages(prev => [...prev, doctorMessage]);
+        setMessages(prev => [...prev, assistantMessage]);
       }, 300);
       
       // Update webhook connection status based on response
@@ -194,7 +202,7 @@ const ChatContainer: React.FC = () => {
       const errorMessage: ExtendedMessage = {
         id: generateId(),
         content: "ขออภัยครับ เกิดปัญหาในการประมวลผลข้อความ กรุณาลองใหม่อีกครั้ง",
-        role: "assistant", // Changed from "doctor" to "assistant"
+        role: "assistant",
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -214,13 +222,16 @@ const ChatContainer: React.FC = () => {
     const welcomeMessage: ExtendedMessage = {
       id: generateId(),
       content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
-      role: "assistant", // Changed from "doctor" to "assistant"
+      role: "assistant",
       timestamp: new Date().toISOString(),
     };
     setMessages([welcomeMessage]);
     
     if (chatId) {
-      saveChatSession(chatId, [welcomeMessage]);
+      // Create a new chat with just the welcome message
+      const newChatMessages = [{ ...welcomeMessage, id: undefined }] as Message[];
+      const newChat = chatService.saveChat(newChatMessages);
+      navigate(`/chat/${newChat.id}`, { replace: true });
     }
     
     toast({

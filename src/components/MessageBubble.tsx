@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { UserCircle, StethoscopeIcon, Maximize2 } from "lucide-react";
 import { Message } from "@/types/chat";
@@ -43,7 +44,7 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble = ({ message, isLatest }: MessageBubbleProps) => {
-  const isDoctor = message.role === "doctor";
+  const isDoctor = message.role === "assistant";
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [hasTable, setHasTable] = useState(false);
   

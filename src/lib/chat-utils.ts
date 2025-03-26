@@ -1,3 +1,4 @@
+
 import { Message, N8nResponse } from "@/types/chat";
 
 // Generate unique IDs for messages
@@ -160,13 +161,13 @@ export function deleteChatSession(sessionId: string): void {
 }
 
 // Get session details
-export function getSessionDetails(sessionId: string): { title: string; lastMessage: string; timestamp: Date } {
+export function getSessionDetails(sessionId: string): { title: string; lastMessage: string; timestamp: string } {
   const messages = getChatSession(sessionId);
   const lastMessage = messages[messages.length - 1];
   
   return {
     title: messages[0]?.content.slice(0, 30) + (messages[0]?.content.length > 30 ? '...' : '') || 'แชทใหม่',
     lastMessage: lastMessage?.content.slice(0, 50) + (lastMessage?.content.length > 50 ? '...' : '') || '',
-    timestamp: lastMessage?.timestamp || new Date(),
+    timestamp: lastMessage?.timestamp || new Date().toISOString(),
   };
 }

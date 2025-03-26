@@ -7,7 +7,7 @@ export const chatService = {
   // บันทึกการสนทนาใหม่
   saveChat: (messages: Message[]) => {
     const currentTime = new Date();
-    const formattedTime = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')} ${String(currentTime.getDate()).padStart(2, '0')}/${String(currentTime.getMonth() + 1).padStart(2, '0')}/${String(currentTime.getFullYear()).slice(-2)}`;
+    const formattedTime = formatTimestampTitle(currentTime);
     
     const chat: Chat = {
       id: Date.now().toString(),
@@ -69,3 +69,14 @@ export const chatService = {
     return false;
   },
 };
+
+// Format timestamp as hr:min:dd:mm:yy
+function formatTimestampTitle(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  
+  return `${hours}:${minutes}:${day}:${month}:${year}`;
+}
