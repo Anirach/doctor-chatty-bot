@@ -5,93 +5,95 @@ import ChatInput from "./ChatInput";
 import ChatHeader from "./ChatHeader";
 import SettingsDialog from "./SettingsDialog";
 import { Message, WebhookConfig } from "@/types/chat";
-import { generateId, sendToN8n } from "@/lib/chat-utils";
+import { generateId, sendToN8n, saveChatSession, getChatSession, getSessionList, deleteChatSession, getSessionDetails } from "@/lib/chat-utils";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { chatService } from "@/services/chatService";
 
-// Extend the Message type to include the properties we need
-interface ExtendedMessage extends Message {
-  id: string;
-  isTyping?: boolean;
-  graph?: any;
-}
-
 const ChatContainer: React.FC = () => {
-  const [messages, setMessages] = useState<ExtendedMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({
     url: localStorage.getItem("n8n-webhook-url") || "",
     connected: localStorage.getItem("n8n-webhook-connected") === "true",
   });
+  const [sessions, setSessions] = useState<{ id: string; title: string; lastMessage: string; timestamp: Date }[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { id: chatId } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  // Load messages for current session or create welcome message
+  // โหลดบทสนทนาเก่าจาก URL parameter
   useEffect(() => {
-    if (chatId) {
-      // If there's a chat ID in the URL, load that chat
-      const chat = chatService.getChatById(chatId);
-      if (chat && chat.messages.length > 0) {
-        const extendedMessages: ExtendedMessage[] = chat.messages.map(msg => ({
-          ...msg,
-          id: generateId(),
-        }));
-        setMessages(extendedMessages);
+    if (id) {
+      const savedMessages = getChatSession(id);
+      if (savedMessages.length > 0) {
+        setMessages(savedMessages);
+        setCurrentSessionId(id);
       } else {
-        // If no valid chat is found, create a welcome message
-        const welcomeMessage: ExtendedMessage = {
-          id: generateId(),
-          content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+        // ถ้าไม่พบบทสนทนา ให้สร้างใหม่
+        const welcomeMessage: Message = {
           role: "assistant",
+          content: "Hello! I'm Dr. Assistant. How can I help you today?",
           timestamp: new Date().toISOString()
         };
         setMessages([welcomeMessage]);
+        saveChatSession(id, [welcomeMessage]);
+        setCurrentSessionId(id);
       }
-    } else if (messages.length === 0) {
-      // If no chat is loaded and no messages exist, add welcome message
-      const welcomeMessage: ExtendedMessage = {
-        id: generateId(),
-        content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+    }
+  }, [id]);
+
+  // เพิ่มข้อความต้อนรับเมื่อเริ่มบทสนทนาใหม่
+  useEffect(() => {
+    if (messages.length === 0 && !id) {
+      const welcomeMessage: Message = {
         role: "assistant",
+        content: "Hello! I'm Dr. Assistant. How can I help you today?",
         timestamp: new Date().toISOString()
       };
       setMessages([welcomeMessage]);
     }
-  }, [chatId]);
+  }, [id]);
+
+  // Load sessions
+  useEffect(() => {
+    const sessionIds = getSessionList();
+    const sessionDetails = sessionIds.map(id => ({
+      id,
+      ...getSessionDetails(id),
+      timestamp: new Date(getSessionDetails(id).timestamp)
+    }));
+    setSessions(sessionDetails);
+    
+    // Set current session to the most recent one or create new one
+    if (sessionDetails.length > 0 && !id) {
+      setCurrentSessionId(sessionDetails[0].id);
+    }
+  }, [id]);
 
   // Save messages when they change
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && currentSessionId) {
       // Only save messages that aren't typing indicators
-      const messagesToSave = messages.filter(msg => !msg.isTyping).map(({ id, ...rest }) => rest);
+      const messagesToSave = messages.filter(msg => !msg.isTyping);
+      saveChatSession(currentSessionId, messagesToSave);
       
-      if (chatId) {
-        // Update existing chat
-        const existingChat = chatService.getChatById(chatId);
-        if (existingChat) {
-          existingChat.messages = messagesToSave;
-          existingChat.updatedAt = new Date().toISOString();
-          const chats = chatService.getChats();
-          const updatedChats = chats.map(chat => 
-            chat.id === chatId ? existingChat : chat
-          );
-          localStorage.setItem("chat_history", JSON.stringify(updatedChats));
-        } else if (messagesToSave.length > 0) {
-          // If we have messages but no existing chat, create a new one
-          const newChat = chatService.saveChat(messagesToSave);
-          navigate(`/chat/${newChat.id}`, { replace: true });
-        }
-      } else if (messagesToSave.length > 1) {
-        // If we have more than just the welcome message and no chat ID, create a new chat
-        const newChat = chatService.saveChat(messagesToSave);
-        navigate(`/chat/${newChat.id}`, { replace: true });
-      }
+      // Update sessions list
+      const sessionDetails = getSessionDetails(currentSessionId);
+      setSessions(prev => 
+        prev.map(session => 
+          session.id === currentSessionId ? { 
+            ...session, 
+            ...sessionDetails,
+            timestamp: new Date(sessionDetails.timestamp)
+          } : session
+        )
+      );
     }
-  }, [messages, chatId, navigate]);
+  }, [messages, currentSessionId]);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
@@ -107,21 +109,19 @@ const ChatContainer: React.FC = () => {
   const handleSendMessage = async (content: string) => {
     if (isProcessing) return;
 
-    // Add user message
-    const userMessage: ExtendedMessage = {
-      id: generateId(),
-      content,
+    // Add patient message
+    const patientMessage: Message = {
       role: "user",
-      timestamp: new Date().toISOString(),
+      content,
+      timestamp: new Date().toISOString()
     };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, patientMessage]);
     
     // Add typing indicator
     const typingIndicatorId = generateId();
-    const typingIndicator: ExtendedMessage = {
-      id: typingIndicatorId,
-      content: "",
+    const typingIndicator: Message = {
       role: "assistant",
+      content: "",
       timestamp: new Date().toISOString(),
       isTyping: true,
     };
@@ -138,15 +138,14 @@ const ChatContainer: React.FC = () => {
         // Remove typing indicator
         setTimeout(() => {
           setMessages(prev => 
-            prev.filter(msg => msg.id !== typingIndicatorId)
+            prev.filter(msg => !msg.isTyping)
           );
           
           // Add error message
-          const errorMessage: ExtendedMessage = {
-            id: generateId(),
-            content: "กรุณาตั้งค่า n8n webhook URL ในส่วนตั้งค่าเพื่อให้สามารถตอบกลับได้",
+          const errorMessage: Message = {
             role: "assistant",
-            timestamp: new Date().toISOString(),
+            content: "กรุณาตั้งค่า n8n webhook URL ในส่วนตั้งค่าเพื่อให้สามารถตอบกลับได้",
+            timestamp: new Date().toISOString()
           };
           setMessages(prev => [...prev, errorMessage]);
           
@@ -162,21 +161,19 @@ const ChatContainer: React.FC = () => {
       
       // Remove typing indicator
       setMessages(prev => 
-        prev.filter(msg => msg.id !== typingIndicatorId)
+        prev.filter(msg => !msg.isTyping)
       );
       
-      // Add assistant message
-      const assistantMessage: ExtendedMessage = {
-        id: generateId(),
-        content: response.response,
+      // Add doctor message
+      const doctorMessage: Message = {
         role: "assistant",
-        timestamp: new Date().toISOString(),
-        graph: response.graph
+        content: response.response,
+        timestamp: new Date().toISOString()
       };
       
       // Add a small delay for natural conversation flow
       setTimeout(() => {
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages(prev => [...prev, doctorMessage]);
       }, 300);
       
       // Update webhook connection status based on response
@@ -195,15 +192,14 @@ const ChatContainer: React.FC = () => {
       
       // Remove typing indicator
       setMessages(prev => 
-        prev.filter(msg => msg.id !== typingIndicatorId)
+        prev.filter(msg => !msg.isTyping)
       );
       
       // Add error message
-      const errorMessage: ExtendedMessage = {
-        id: generateId(),
-        content: "ขออภัยครับ เกิดปัญหาในการประมวลผลข้อความ กรุณาลองใหม่อีกครั้ง",
+      const errorMessage: Message = {
         role: "assistant",
-        timestamp: new Date().toISOString(),
+        content: "ขออภัยครับ เกิดปัญหาในการประมวลผลข้อความ กรุณาลองใหม่อีกครั้ง",
+        timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);
       
@@ -219,20 +215,13 @@ const ChatContainer: React.FC = () => {
 
   const handleClearChat = () => {
     // Keep the welcome message
-    const welcomeMessage: ExtendedMessage = {
-      id: generateId(),
-      content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+    const welcomeMessage: Message = {
       role: "assistant",
-      timestamp: new Date().toISOString(),
+      content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+      timestamp: new Date().toISOString()
     };
     setMessages([welcomeMessage]);
-    
-    if (chatId) {
-      // Create a new chat with just the welcome message
-      const newChatMessages = [{ ...welcomeMessage, id: undefined }] as Message[];
-      const newChat = chatService.saveChat(newChatMessages);
-      navigate(`/chat/${newChat.id}`, { replace: true });
-    }
+    saveChatSession(currentSessionId, [welcomeMessage]);
     
     toast({
       title: "ล้างแชทแล้ว",
@@ -241,30 +230,25 @@ const ChatContainer: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full">
       <ChatHeader 
         onOpenSettings={() => setSettingsOpen(true)}
         onClearChat={handleClearChat}
         webhookConnected={webhookConfig.connected}
         messages={messages}
-        showMenuButtons={false} // Hide menu buttons that are now in sidebar
       />
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-br from-blue-50/50 to-white">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
           <MessageBubble 
-            key={message.id} 
+            key={index} 
             message={message}
             isLatest={index === messages.length - 1}
           />
         ))}
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-4 border-t bg-white">
-        <ChatInput 
-          onSendMessage={handleSendMessage} 
-          isProcessing={isProcessing}
-          placeholder="อธิบายอาการหรือถามคำถาม..."
-        />
+      <div className="p-4 border-t">
+        <ChatInput onSendMessage={handleSendMessage} isProcessing={isProcessing} />
       </div>
       <SettingsDialog
         open={settingsOpen}
