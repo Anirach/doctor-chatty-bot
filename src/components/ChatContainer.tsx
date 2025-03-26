@@ -33,8 +33,8 @@ const ChatContainer: React.FC = () => {
       // If no chat is loaded and no messages exist, add welcome message
       const welcomeMessage: Message = {
         id: generateId(),
-        role: "assistant",
         content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+        role: "assistant",
         timestamp: new Date().toISOString()
       };
       setMessages([welcomeMessage]);
@@ -194,7 +194,7 @@ const ChatContainer: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full">
       <ChatHeader 
         onOpenSettings={() => setSettingsOpen(true)}
         onClearChat={handleClearChat}
@@ -202,7 +202,7 @@ const ChatContainer: React.FC = () => {
         messages={messages}
         showMenuButtons={false} // Hide menu buttons that are now in sidebar
       />
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-br from-blue-50/50 to-white">
         {messages.map((message, index) => (
           <MessageBubble 
             key={message.id} 
@@ -212,7 +212,7 @@ const ChatContainer: React.FC = () => {
         ))}
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-4 border-t">
+      <div className="p-4 border-t bg-white">
         <ChatInput 
           onSendMessage={handleSendMessage} 
           isProcessing={isProcessing}

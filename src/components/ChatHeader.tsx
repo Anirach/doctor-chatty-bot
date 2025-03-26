@@ -28,11 +28,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   showMenuButtons = true // Default to true for backward compatibility
 }) => {
   return (
-    <header className="px-4 py-3 border-b flex items-center justify-between bg-white">
+    <header className="px-4 py-3 border-b flex items-center justify-between bg-white shadow-sm">
       <div className="flex items-center gap-2">
         <h1 className="text-lg font-medium">AI Assistant</h1>
         <Badge
-          variant={webhookConnected ? "success" : "destructive"}
+          variant={webhookConnected ? "default" : "destructive"}
           className={`${
             webhookConnected ? "bg-green-500" : "bg-red-500"
           } text-white`}

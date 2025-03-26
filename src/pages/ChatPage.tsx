@@ -12,9 +12,9 @@ import ChatSidebar from "@/components/ChatSidebar";
 const ChatPage = () => {
   return (
     <SidebarProvider defaultOpen={true}>
-      <main className="h-screen flex bg-gradient-to-br from-blue-50 to-white">
+      <main className="h-screen flex bg-gradient-to-br from-blue-50 to-white overflow-hidden">
         <ChatSidebar />
-        <div className="flex-1 h-screen overflow-hidden">
+        <div className="flex-1 flex flex-col h-screen overflow-hidden">
           <ChatContainer />
         </div>
         <SidebarRail />
