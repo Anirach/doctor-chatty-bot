@@ -1,5 +1,6 @@
+
 import React from "react";
-import { Settings, Trash2, LogOut, History } from "lucide-react";
+import { MoreVertical, Settings, Trash, History, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,83 +9,92 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StethoscopeIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { chatService } from "@/services/chatService";
-import { Message } from "@/types/chat";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
 interface ChatHeaderProps {
-  onClearChat: () => void;
   onOpenSettings: () => void;
+  onClearChat: () => void;
   webhookConnected: boolean;
-  messages: Message[];
+  messages: any[];
+  showMenuButtons?: boolean;
 }
 
-const ChatHeader = ({ onClearChat, onOpenSettings, webhookConnected, messages }: ChatHeaderProps) => {
-  const navigate = useNavigate();
-
-  const handleExit = () => {
-    if (messages.length > 0) {
-      chatService.saveChat(messages);
-    }
-    navigate('/');
-  };
-
+const ChatHeader: React.FC<ChatHeaderProps> = ({
+  onOpenSettings,
+  onClearChat,
+  webhookConnected,
+  messages,
+  showMenuButtons = true // Default to true for backward compatibility
+}) => {
   return (
-    <div className="glass rounded-xl p-3 mb-4 flex items-center justify-between animate-fade-in">
+    <header className="px-4 py-3 border-b flex items-center justify-between bg-white">
       <div className="flex items-center gap-2">
-        <div className="h-10 w-10 rounded-full bg-doctor-light flex items-center justify-center">
-          <StethoscopeIcon className="h-6 w-6 text-doctor" />
-        </div>
-        <div>
-          <h1 className="font-medium text-lg">Dr. Assistant</h1>
-          <div className="flex items-center text-xs text-muted-foreground">
-            <span className={`mr-1.5 h-2 w-2 rounded-full ${webhookConnected ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-            {webhookConnected ? 'Connected to n8n' : 'n8n connection not configured'}
-          </div>
-        </div>
+        <h1 className="text-lg font-medium">AI Assistant</h1>
+        <Badge
+          variant={webhookConnected ? "success" : "destructive"}
+          className={`${
+            webhookConnected ? "bg-green-500" : "bg-red-500"
+          } text-white`}
+        >
+          {webhookConnected ? "เชื่อมต่อแล้ว" : "ไม่ได้เชื่อมต่อ"}
+        </Badge>
       </div>
+
+      {showMenuButtons && (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onOpenSettings}
+            title="ตั้งค่า"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onClearChat}
+            title="ล้างการสนทนา"
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link to="/history" className="cursor-pointer">
+                  <History className="h-4 w-4 mr-2" />
+                  ประวัติการสนทนา
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/" className="cursor-pointer text-red-500">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  ออกจากระบบ
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
       
-      <div className="flex items-center gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={() => navigate('/history')}
+      {!showMenuButtons && (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onOpenSettings}
+          title="ตั้งค่า"
         >
-          <History className="h-4 w-4" />
-          <span>History</span>
+          <Settings className="h-4 w-4" />
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={handleExit}
-        >
-          <LogOut className="h-4 w-4" />
-          <span>Exit</span>
-        </Button>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 animate-fade-in">
-            <DropdownMenuItem onClick={onOpenSettings} className="cursor-pointer">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onClearChat} className="cursor-pointer text-red-500 focus:text-red-500">
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Clear chat</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
+      )}
+    </header>
   );
 };
 

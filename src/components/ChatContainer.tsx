@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import ChatHeader from "./ChatHeader";
@@ -16,96 +17,38 @@ const ChatContainer: React.FC = () => {
     url: localStorage.getItem("n8n-webhook-url") || "",
     connected: localStorage.getItem("n8n-webhook-connected") === "true",
   });
-  const [sessions, setSessions] = useState<{ id: string; title: string; lastMessage: string; timestamp: Date }[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { id: chatId } = useParams<{ id: string }>();
 
-  // เพิ่มข้อความต้อนรับเมื่อเริ่มบทสนทนาใหม่
-  React.useEffect(() => {
-    if (messages.length === 0) {
+  // Load messages for current session or create welcome message
+  useEffect(() => {
+    if (chatId) {
+      // If there's a chat ID in the URL, load that chat
+      const savedMessages = getChatSession(chatId);
+      if (savedMessages.length > 0) {
+        setMessages(savedMessages);
+      }
+    } else if (messages.length === 0) {
+      // If no chat is loaded and no messages exist, add welcome message
       const welcomeMessage: Message = {
+        id: generateId(),
         role: "assistant",
-        content: "Hello! I'm Dr. Assistant. How can I help you today?",
+        content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
         timestamp: new Date().toISOString()
       };
       setMessages([welcomeMessage]);
     }
-  }, []);
-
-  const handleNewChat = () => {
-    const newSessionId = generateId();
-    setCurrentSessionId(newSessionId);
-    setMessages([]);
-    
-    // Add welcome message
-    const welcomeMessage: Message = {
-      id: generateId(),
-      content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
-      role: "assistant",
-      timestamp: new Date().toISOString(),
-    };
-    setMessages([welcomeMessage]);
-    saveChatSession(newSessionId, [welcomeMessage]);
-    
-    // Update sessions list
-    const sessionDetails = getSessionDetails(newSessionId);
-    setSessions(prev => [{ id: newSessionId, ...sessionDetails }, ...prev]);
-  };
-
-  // Load sessions
-  useEffect(() => {
-    const sessionIds = getSessionList();
-    const sessionDetails = sessionIds.map(id => ({
-      id,
-      ...getSessionDetails(id)
-    }));
-    setSessions(sessionDetails);
-    
-    // Set current session to the most recent one or create new one
-    if (sessionDetails.length > 0) {
-      setCurrentSessionId(sessionDetails[0].id);
-    } else {
-      handleNewChat();
-    }
-  }, []);
-
-  // Load messages for current session
-  useEffect(() => {
-    if (currentSessionId) {
-      const savedMessages = getChatSession(currentSessionId);
-      if (savedMessages.length > 0) {
-        setMessages(savedMessages);
-      } else {
-        // Add welcome message if this is a new session
-        const welcomeMessage: Message = {
-          id: generateId(),
-          content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
-          role: "doctor",
-          timestamp: new Date(),
-        };
-        setMessages([welcomeMessage]);
-        saveChatSession(currentSessionId, [welcomeMessage]);
-      }
-    }
-  }, [currentSessionId]);
+  }, [chatId]);
 
   // Save messages when they change
   useEffect(() => {
-    if (messages.length > 0 && currentSessionId) {
+    if (messages.length > 0 && chatId) {
       // Only save messages that aren't typing indicators
       const messagesToSave = messages.filter(msg => !msg.isTyping);
-      saveChatSession(currentSessionId, messagesToSave);
-      
-      // Update sessions list
-      const sessionDetails = getSessionDetails(currentSessionId);
-      setSessions(prev => 
-        prev.map(session => 
-          session.id === currentSessionId ? { ...session, ...sessionDetails } : session
-        )
-      );
+      saveChatSession(chatId, messagesToSave);
     }
-  }, [messages, currentSessionId]);
+  }, [messages, chatId]);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
@@ -126,7 +69,7 @@ const ChatContainer: React.FC = () => {
       id: generateId(),
       content,
       role: "patient",
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
     setMessages(prev => [...prev, patientMessage]);
     
@@ -136,7 +79,7 @@ const ChatContainer: React.FC = () => {
       id: typingIndicatorId,
       content: "",
       role: "doctor",
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       isTyping: true,
     };
     
@@ -160,7 +103,7 @@ const ChatContainer: React.FC = () => {
             id: generateId(),
             content: "กรุณาตั้งค่า n8n webhook URL ในส่วนตั้งค่าเพื่อให้สามารถตอบกลับได้",
             role: "doctor",
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
           };
           setMessages(prev => [...prev, errorMessage]);
           
@@ -184,7 +127,7 @@ const ChatContainer: React.FC = () => {
         id: generateId(),
         content: response.response,
         role: "doctor",
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
       
       // Add a small delay for natural conversation flow
@@ -216,7 +159,7 @@ const ChatContainer: React.FC = () => {
         id: generateId(),
         content: "ขออภัยครับ เกิดปัญหาในการประมวลผลข้อความ กรุณาลองใหม่อีกครั้ง",
         role: "doctor",
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMessage]);
       
@@ -236,10 +179,13 @@ const ChatContainer: React.FC = () => {
       id: generateId(),
       content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
       role: "doctor",
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
     setMessages([welcomeMessage]);
-    saveChatSession(currentSessionId, [welcomeMessage]);
+    
+    if (chatId) {
+      saveChatSession(chatId, [welcomeMessage]);
+    }
     
     toast({
       title: "ล้างแชทแล้ว",
@@ -254,6 +200,7 @@ const ChatContainer: React.FC = () => {
         onClearChat={handleClearChat}
         webhookConnected={webhookConfig.connected}
         messages={messages}
+        showMenuButtons={false} // Hide menu buttons that are now in sidebar
       />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
