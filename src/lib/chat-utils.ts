@@ -6,19 +6,25 @@ export function generateId(): string {
 }
 
 // Format the current date for display
-export function formatDate(date: Date): string {
+export function formatDate(date: string | Date): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+    return ''; // Return empty string for invalid dates
+  }
+  
   return new Intl.DateTimeFormat('th-TH', {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true,
     month: 'short',
     day: 'numeric',
-  }).format(date);
+  }).format(dateObj);
 }
 
 // Format the timestamp for message display
-export function formatMessageTime(date: Date): string {
-  if (!(date instanceof Date) || isNaN(date.getTime())) {
+export function formatMessageTime(date: string | Date): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
     return new Intl.DateTimeFormat('th-TH', {
       hour: 'numeric',
       minute: 'numeric',
@@ -30,7 +36,7 @@ export function formatMessageTime(date: Date): string {
     hour: 'numeric',
     minute: 'numeric',
     hour12: true,
-  }).format(date);
+  }).format(dateObj);
 }
 
 // Send message to n8n webhook

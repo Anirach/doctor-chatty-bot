@@ -1,9 +1,3 @@
-export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
-
 export interface Chat {
   id: string;
   title: string;
@@ -19,22 +13,21 @@ export interface ChatHistory {
   timestamp: string;
 }
 
-export interface WebhookConfig {
-  url: string;
-  connected: boolean;
+export interface Message {
+  content: string;
+  role: "user" | "assistant";
+  timestamp: string;
+  isTyping?: boolean;
+  graph?: any; // Add graph property for data visualization
 }
 
 export interface N8nResponse {
   success: boolean;
   response: string;
-  graph?: {
-    type: 'line' | 'bar' | 'pie';
-    data: any;
-    options?: any;
-  };
-  metadata?: {
-    suggestedFollowUp?: string[];
-    confidence?: number;
-    sourceInfo?: string;
-  }
+  graph?: any;
+}
+
+export interface WebhookConfig {
+  url: string;
+  connected: boolean;
 }

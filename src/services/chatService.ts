@@ -1,3 +1,4 @@
+
 import { Chat, ChatHistory, Message } from '@/types/chat';
 
 const STORAGE_KEY = 'chat_history';
@@ -5,9 +6,12 @@ const STORAGE_KEY = 'chat_history';
 export const chatService = {
   // บันทึกการสนทนาใหม่
   saveChat: (messages: Message[]) => {
+    const currentTime = new Date();
+    const formattedTime = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')} ${String(currentTime.getDate()).padStart(2, '0')}/${String(currentTime.getMonth() + 1).padStart(2, '0')}/${String(currentTime.getFullYear()).slice(-2)}`;
+    
     const chat: Chat = {
       id: Date.now().toString(),
-      title: messages[0]?.content.slice(0, 50) + '...', // ใช้คำถามแรกเป็นชื่อไฟล์
+      title: formattedTime, // Use formatted timestamp as title
       messages,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -49,4 +53,19 @@ export const chatService = {
     const filteredChats = chats.filter(chat => chat.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredChats));
   },
-}; 
+  
+  // เปลี่ยนชื่อการสนทนา
+  renameChat: (id: string, newTitle: string) => {
+    const chats = chatService.getChats();
+    const chatIndex = chats.findIndex(chat => chat.id === id);
+    
+    if (chatIndex !== -1) {
+      chats[chatIndex].title = newTitle;
+      chats[chatIndex].updatedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+      return true;
+    }
+    
+    return false;
+  },
+};

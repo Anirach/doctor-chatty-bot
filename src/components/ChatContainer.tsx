@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import MessageBubble from "./MessageBubble";
@@ -8,11 +9,13 @@ import { Message, WebhookConfig } from "@/types/chat";
 import { generateId, sendToN8n, saveChatSession, getChatSession, getSessionList, deleteChatSession, getSessionDetails } from "@/lib/chat-utils";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { chatService } from "@/services/chatService";
 
 // Extend the Message type to include the properties we need
 interface ExtendedMessage extends Message {
   id: string;
   isTyping?: boolean;
+  graph?: any;
 }
 
 const ChatContainer: React.FC = () => {
@@ -31,9 +34,22 @@ const ChatContainer: React.FC = () => {
   useEffect(() => {
     if (chatId) {
       // If there's a chat ID in the URL, load that chat
-      const savedMessages = getChatSession(chatId) as ExtendedMessage[];
-      if (savedMessages.length > 0) {
-        setMessages(savedMessages);
+      const chat = chatService.getChatById(chatId);
+      if (chat && chat.messages.length > 0) {
+        const extendedMessages: ExtendedMessage[] = chat.messages.map(msg => ({
+          ...msg,
+          id: generateId(),
+        }));
+        setMessages(extendedMessages);
+      } else {
+        // If no valid chat is found, create a welcome message
+        const welcomeMessage: ExtendedMessage = {
+          id: generateId(),
+          content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
+          role: "assistant",
+          timestamp: new Date().toISOString()
+        };
+        setMessages([welcomeMessage]);
       }
     } else if (messages.length === 0) {
       // If no chat is loaded and no messages exist, add welcome message
@@ -51,8 +67,22 @@ const ChatContainer: React.FC = () => {
   useEffect(() => {
     if (messages.length > 0 && chatId) {
       // Only save messages that aren't typing indicators
-      const messagesToSave = messages.filter(msg => !msg.isTyping);
-      saveChatSession(chatId, messagesToSave);
+      const messagesToSave = messages.filter(msg => !msg.isTyping).map(({ id, ...rest }) => rest);
+      
+      // Get existing chat or create a new one
+      const existingChat = chatService.getChatById(chatId);
+      if (existingChat) {
+        existingChat.messages = messagesToSave;
+        existingChat.updatedAt = new Date().toISOString();
+        const chats = chatService.getChats();
+        const updatedChats = chats.map(chat => 
+          chat.id === chatId ? existingChat : chat
+        );
+        localStorage.setItem("chat_history", JSON.stringify(updatedChats));
+      } else if (messagesToSave.length > 0) {
+        // If we have messages but no existing chat, create a new one
+        chatService.saveChat(messagesToSave);
+      }
     }
   }, [messages, chatId]);
 
@@ -212,7 +242,7 @@ const ChatContainer: React.FC = () => {
         {messages.map((message, index) => (
           <MessageBubble 
             key={message.id} 
-            message={message as any}
+            message={message}
             isLatest={index === messages.length - 1}
           />
         ))}
