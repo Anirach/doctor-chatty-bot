@@ -9,8 +9,14 @@ import { generateId, sendToN8n, saveChatSession, getChatSession, getSessionList,
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
+// Extend the Message type to include the properties we need
+interface ExtendedMessage extends Message {
+  id: string;
+  isTyping?: boolean;
+}
+
 const ChatContainer: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ExtendedMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({
@@ -25,13 +31,13 @@ const ChatContainer: React.FC = () => {
   useEffect(() => {
     if (chatId) {
       // If there's a chat ID in the URL, load that chat
-      const savedMessages = getChatSession(chatId);
+      const savedMessages = getChatSession(chatId) as ExtendedMessage[];
       if (savedMessages.length > 0) {
         setMessages(savedMessages);
       }
     } else if (messages.length === 0) {
       // If no chat is loaded and no messages exist, add welcome message
-      const welcomeMessage: Message = {
+      const welcomeMessage: ExtendedMessage = {
         id: generateId(),
         content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
         role: "assistant",
@@ -65,20 +71,20 @@ const ChatContainer: React.FC = () => {
     if (isProcessing) return;
 
     // Add patient message
-    const patientMessage: Message = {
+    const patientMessage: ExtendedMessage = {
       id: generateId(),
       content,
-      role: "patient",
+      role: "user", // Changed from "patient" to "user" to match Message type
       timestamp: new Date().toISOString(),
     };
     setMessages(prev => [...prev, patientMessage]);
     
     // Add typing indicator
     const typingIndicatorId = generateId();
-    const typingIndicator: Message = {
+    const typingIndicator: ExtendedMessage = {
       id: typingIndicatorId,
       content: "",
-      role: "doctor",
+      role: "assistant", // Changed from "doctor" to "assistant" to match Message type
       timestamp: new Date().toISOString(),
       isTyping: true,
     };
@@ -99,10 +105,10 @@ const ChatContainer: React.FC = () => {
           );
           
           // Add error message
-          const errorMessage: Message = {
+          const errorMessage: ExtendedMessage = {
             id: generateId(),
             content: "กรุณาตั้งค่า n8n webhook URL ในส่วนตั้งค่าเพื่อให้สามารถตอบกลับได้",
-            role: "doctor",
+            role: "assistant", // Changed from "doctor" to "assistant"
             timestamp: new Date().toISOString(),
           };
           setMessages(prev => [...prev, errorMessage]);
@@ -123,10 +129,10 @@ const ChatContainer: React.FC = () => {
       );
       
       // Add doctor message
-      const doctorMessage: Message = {
+      const doctorMessage: ExtendedMessage = {
         id: generateId(),
         content: response.response,
-        role: "doctor",
+        role: "assistant", // Changed from "doctor" to "assistant"
         timestamp: new Date().toISOString(),
       };
       
@@ -155,10 +161,10 @@ const ChatContainer: React.FC = () => {
       );
       
       // Add error message
-      const errorMessage: Message = {
+      const errorMessage: ExtendedMessage = {
         id: generateId(),
         content: "ขออภัยครับ เกิดปัญหาในการประมวลผลข้อความ กรุณาลองใหม่อีกครั้ง",
-        role: "doctor",
+        role: "assistant", // Changed from "doctor" to "assistant"
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -175,10 +181,10 @@ const ChatContainer: React.FC = () => {
 
   const handleClearChat = () => {
     // Keep the welcome message
-    const welcomeMessage: Message = {
+    const welcomeMessage: ExtendedMessage = {
       id: generateId(),
       content: "สวัสดีครับ ผมคือ Dr. Assistant มีอะไรให้ช่วยไหมครับ?",
-      role: "doctor",
+      role: "assistant", // Changed from "doctor" to "assistant"
       timestamp: new Date().toISOString(),
     };
     setMessages([welcomeMessage]);
@@ -206,7 +212,7 @@ const ChatContainer: React.FC = () => {
         {messages.map((message, index) => (
           <MessageBubble 
             key={message.id} 
-            message={message}
+            message={message as any}
             isLatest={index === messages.length - 1}
           />
         ))}
